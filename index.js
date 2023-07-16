@@ -142,7 +142,7 @@ const closeDialog = async () => {
   await dialog.close()
 }
 
-window.addEventListener('DOMContentLoaded', event => {
+const intializeWalkthrough = () => {
   const current = getStep()
 
   if (current < 0) {
@@ -183,18 +183,15 @@ window.addEventListener('DOMContentLoaded', event => {
     }
   }
 
-  // Initialize
   showDialog()
 
   // Event Listeners
-
   // 1. Close Buttons
   const closeButtons = document.querySelectorAll('[data-close-dialog]')
   closeButtons.forEach(close => {
     close.addEventListener('click', event => {
       closeDialog()
       setStep(-1)
-      window.location.reload()
     })
   })
 
@@ -206,4 +203,10 @@ window.addEventListener('DOMContentLoaded', event => {
       await showDialog()
     })
   })
-})
+}
+
+document.onreadystatechange = () => {
+  if (document.readyState === 'complete') {
+    intializeWalkthrough()
+  }
+}
