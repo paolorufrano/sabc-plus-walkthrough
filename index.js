@@ -101,6 +101,10 @@ const stepTwoContent = `
   <p>These five tabs are where you'll find our channels, radio stations, and box sets of your favourite shows for you to catch up or binge.</p>
   <button class="next-dialog">Next ></button>
 `
+const isAuthenticated = () => {
+  const element = document.querySelector('.user-menu ul li[data-show-if-authenticated]')
+  return !element
+}
 
 const injectStyle = css => {
   const styleElement = document.createElement('style')
@@ -138,18 +142,6 @@ const closeDialog = async () => {
   await dialog.close()
 }
 
-const isAuthenticated = () => {
-  const element = document.querySelector(".user-menu ul li:contains('My Account')")
-  if (!element) return false
-
-  const parentElement = element.parentNode
-  if (parentElement.hasAttribute('data-show-if-authenticated')) {
-    return false
-  }
-
-  return true
-}
-
 window.addEventListener('DOMContentLoaded', event => {
   const current = getStep()
 
@@ -158,8 +150,9 @@ window.addEventListener('DOMContentLoaded', event => {
     return
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated()) {
     console.log('Platform walkthrough has been skipped, unauthenticated user')
+    return
   }
 
   injectStyle(customCSS)
@@ -201,6 +194,7 @@ window.addEventListener('DOMContentLoaded', event => {
     close.addEventListener('click', event => {
       closeDialog()
       setStep(-1)
+      window.location.reload()
     })
   })
 
