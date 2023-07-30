@@ -30,7 +30,7 @@ const customCSS = `
     box-shadow: 0 0 18px 5px rgba(0, 0, 0, 0.35);
     border-radius: 10px;
     border: 0;
-    z-index: 1;
+    z-index: 999;
     margin-left: 0;
   }
 
@@ -81,6 +81,27 @@ const customCSS = `
   dialog.tooltip-custom.favourite {
     top: 107%;
     left: 45px;
+  }
+
+  dialog.tooltip-custom.browse-live {
+    left: unset;
+    right: 70px;
+    top: 400%;
+  }
+
+  dialog.tooltip-custom.watch-live {
+    top: calc(100% + 255px);
+    left: 50px;
+  }
+
+  dialog.tooltip-custom.set-reminder {
+    top: calc(100% + 380px);
+    left: 60%;
+  }
+
+  dialog.tooltip-custom.modal-reminder-press {
+    width: 270px;
+    top: 60px;
   }
 
   dialog.welcome {
@@ -170,13 +191,36 @@ const stepTwoContent = `
 
 const stepThreeContent = `
   <button class="close-dialog" data-close-dialog>X</button>
-  <p> From the poster, you can play the asset, add it to your favourites. For the purpose of the tutorial, hover over this title and click the heart icon to add to your favourites.</p>
+  <p>From the poster, you can play the asset, add it to your favourites. For the purpose of the tutorial, hover over this title and click the heart icon to add to your favourites.</p>
   <button class="next-dialog pull-right">Next <span>></span></button>
 `
 
 const stepFourContent = `
   <button class="close-dialog" data-close-dialog>X</button>
   <p>Click "TV" to view our electronic program guide.</p>
+`
+
+const stepFiveContent = `
+  <button class="close-dialog" data-close-dialog>X</button>
+  <p>This is where you'll see everything that's coming up on all of our channels. Click on these arrows to see what's coming up or watch what's already happened.</p>
+  <button class="next-dialog pull-right">Next <span>></span></button>
+`
+
+const stepSixContent = `
+  <button class="close-dialog" data-close-dialog>X</button>
+  <p>To watch the live feed, simply click the "Play" icon on the channel you'd like to
+  watch.</p>
+  <button class="next-dialog pull-right">Next <span>></span></button>
+`
+
+const stepSevenContent = `
+  <button class="close-dialog" data-close-dialog>X</button>
+  <p>Click on an upcoming asset to set a reminder or record the episode.</p>
+`
+
+const stepEightContent = `
+  <button class="close-dialog" data-close-dialog>X</button>
+  <p>Record an upcoming episode for later viewing, or set a reminder to watch it as it airs. For the purpose of this tutorial, click "Add Recording."</p>
 `
 
 const isAuthenticated = () => {
@@ -198,7 +242,9 @@ const injectDialog = (parentSelector, dialogClass, dialogBody) => {
     return
   }
 
-  if (parentSelector !== 'body') parent.style.position = 'relative'
+  const avoidedParents = ['body']
+
+  if (!avoidedParents.includes(parentSelector)) parent.style.position = 'relative'
 
   const tooltip = `<dialog class="${dialogClass}">${dialogBody}</dialog>`
   parent.innerHTML += tooltip
@@ -220,6 +266,33 @@ const closeDialog = async () => {
   await dialog.close()
 }
 
+const handleMutation = async (mutationsList, observer) => {
+  for (const mutation of mutationsList) {
+    if (mutation.type === 'childList') {
+      await mutation.addedNodes.forEach(async node => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.classList.contains('fancybox-wrap')) {
+            console.log('reminder element exists')
+            await closeDialog()
+
+            injectDialog(
+              '#programContent .right',
+              'tooltip-custom modal-reminder-press',
+              stepEightContent
+            )
+            const modalReminderPressDialog = document.querySelector(
+              'dialog.tooltip-custom.modal-reminder-press'
+            )
+            setStep(7)
+            modalReminderPressDialog.show()
+            observer.disconnect()
+          }
+        }
+      })
+    }
+  }
+}
+
 const intializeWalkthrough = () => {
   const current = getStep()
 
@@ -233,51 +306,97 @@ const intializeWalkthrough = () => {
     return
   }
 
+  // if we are on the tv section
+  const showLiveTVSteps = window.location.pathname.includes('live-tv') && current < 4
+  if (showLiveTVSteps) setStep(4)
+
   injectStyle(customCSS)
 
   // Inject all the dialogs
-  // 1. Welcome
+  // 0. Welcome
   injectDialog('body', 'welcome', stepOneContent)
   const welcomeDialog = document.querySelector('dialog.welcome')
 
-  // 2. Top nav tabs
+  // 1. Top nav tabs
   injectDialog('.main-menu ul li', 'tooltip-custom top-nav', stepTwoContent)
   const topNavDialog = document.querySelector('dialog.tooltip-custom.top-nav')
 
-  // 3. Favourite content
-  // console.log(
-  //   document.querySelector(
-  //     '.general-asset-list:nth-child(4) .item.slick-slide.slick-current.slick-active'
-  //   )
-  // )
+  // 2. Favourite content
   injectDialog('.general-asset-list:nth-child(4)', 'tooltip-custom favourite', stepThreeContent)
   const favouriteDialog = document.querySelector('dialog.tooltip-custom.favourite')
-  console.log(favouriteDialog)
 
-  // 4. TV Item
+  // 3. TV Item
   injectDialog('.main-menu li:nth-child(2)', 'tooltip-custom tv-item', stepFourContent)
   const tvItemDialog = document.querySelector('dialog.tooltip-custom.tv-item')
+
+  // 4. Browse Live
+  injectDialog('.title', 'tooltip-custom browse-live', stepFiveContent)
+  const browseLiveDialog = document.querySelector('dialog.tooltip-custom.browse-live')
+
+  // 5. Watch live
+  injectDialog('.title .row', 'tooltip-custom watch-live', stepSixContent)
+  const watchLiveDialog = document.querySelector('dialog.tooltip-custom.watch-live')
+
+  // 6. Set reminder
+  const titleRow = document.querySelector('.title .row')
+  const newElement = document.createElement('div')
+  newElement.classList.add('set-reminder')
+  titleRow.appendChild(newElement)
+  injectDialog('.set-reminder', 'tooltip-custom set-reminder', stepSevenContent)
+  const watchReminderDialog = document.querySelector('dialog.tooltip-custom.set-reminder')
+
+  // 7. ModalReminderPress
 
   const showDialog = async () => {
     await closeDialog()
 
     switch (getStep()) {
       case 0:
+        if (!welcomeDialog) break
         welcomeDialog.showModal()
         document.querySelector('body').classList.add('no-scroll')
         break
       case 1:
+        if (!topNavDialog) break
         topNavDialog.show()
         topNavDialog.scrollIntoView({ block: 'end', behavior: 'smooth' })
         break
       case 2:
+        if (!favouriteDialog) break
         const parent = document.querySelector('.general-asset-list:nth-child(4)')
         parent.style.zIndex = 1
         favouriteDialog.show()
         parent.scrollIntoView({ inline: 'center', behavior: 'smooth' })
+        break
       case 3:
+        if (!tvItemDialog) break
         tvItemDialog.show()
         tvItemDialog.scrollIntoView({ block: 'end', behavior: 'smooth' })
+        break
+      case 4:
+        if (!browseLiveDialog) break
+        browseLiveDialog.show()
+        browseLiveDialog.scrollIntoView({ inline: 'center', behavior: 'smooth' })
+        break
+      case 5:
+        if (!watchLiveDialog) break
+        watchLiveDialog.show()
+        break
+      case 6:
+        if (!watchReminderDialog) break
+        watchReminderDialog.show()
+
+        const observer = new MutationObserver(handleMutation)
+        const observerConfig = { childList: true, subtree: true }
+        observer.observe(document.body, observerConfig)
+
+        break
+      case 7:
+        // nothing
+        break
+      case 8:
+        // nothing
+        break
       default:
         // nothing
         break
