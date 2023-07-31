@@ -100,8 +100,41 @@ const customCSS = `
   }
 
   dialog.tooltip-custom.modal-reminder-press {
-    width: 270px;
-    top: 60px;
+    width: 380px;
+    top: 10px;
+    left: 0;
+  }
+
+  dialog.tooltip-custom.modal-reminder-press:after {
+    top: 80px;
+    left: unset;
+    right: -14px;
+    transform: rotate(90deg);
+  }
+
+  dialog.tooltip-custom.my-account {
+    left: unset;
+    right: -80px;
+  }
+
+  dialog.tooltip-custom.my-account p {
+    line-height: normal;
+  }
+
+  dialog.tooltip-custom.my-account:after {
+    left: unset;
+    right: 120px;
+  }
+
+  dialog.tooltip-custom.my-account-view {
+    left: 0;
+    top: 30%;
+  }
+
+  dialog.tooltip-custom.my-account-view:after {
+    top: 30px;
+    left: -14px;
+    transform: rotate(-90deg);
   }
 
   dialog.welcome {
@@ -180,19 +213,19 @@ const stepOneContent = `
   <p>Let's start by getting you acquainted with the platform and its key functionalities.</p>
   <div class="actions">
     <button class="skip-dialog" data-close-dialog>SKIP >></button>
-    <button class="next-dialog">LET'S GO!</button>
+    <button class="next-dialog" data-next-dialog>LET'S GO!</button>
   </div>
 `
 const stepTwoContent = `
   <button class="close-dialog" data-close-dialog>X</button>
   <p>These five tabs are where you'll find our channels, radio stations, and box sets of your favourite shows for you to catch up or binge.</p>
-  <button class="next-dialog pull-right">Next <span>></span></button>
+  <button class="next-dialog pull-right" data-next-dialog>Next <span>></span></button>
 `
 
 const stepThreeContent = `
   <button class="close-dialog" data-close-dialog>X</button>
   <p>From the poster, you can play the asset, add it to your favourites. For the purpose of the tutorial, hover over this title and click the heart icon to add to your favourites.</p>
-  <button class="next-dialog pull-right">Next <span>></span></button>
+  <button class="next-dialog pull-right" data-next-dialog>Next <span>></span></button>
 `
 
 const stepFourContent = `
@@ -203,14 +236,14 @@ const stepFourContent = `
 const stepFiveContent = `
   <button class="close-dialog" data-close-dialog>X</button>
   <p>This is where you'll see everything that's coming up on all of our channels. Click on these arrows to see what's coming up or watch what's already happened.</p>
-  <button class="next-dialog pull-right">Next <span>></span></button>
+  <button class="next-dialog pull-right" data-next-dialog>Next <span>></span></button>
 `
 
 const stepSixContent = `
   <button class="close-dialog" data-close-dialog>X</button>
   <p>To watch the live feed, simply click the "Play" icon on the channel you'd like to
   watch.</p>
-  <button class="next-dialog pull-right">Next <span>></span></button>
+  <button class="next-dialog pull-right" data-next-dialog>Next <span>></span></button>
 `
 
 const stepSevenContent = `
@@ -221,6 +254,26 @@ const stepSevenContent = `
 const stepEightContent = `
   <button class="close-dialog" data-close-dialog>X</button>
   <p>Record an upcoming episode for later viewing, or set a reminder to watch it as it airs. For the purpose of this tutorial, click "Add Recording."</p>
+`
+
+const stepNineContent = `
+  <button class="close-dialog" data-close-dialog>X</button>
+  <p>To access your recordings, playlists, and favourites, click "My Account."</p>
+`
+
+const stepTenContent = `
+  <button class="close-dialog" data-close-dialog>X</button>
+  <p>You can access your personalised content here. Click on "My Recordings" to view the asset we just set to record.</p>
+  <button class="next-dialog pull-right" data-next-dialog>Next <span>></span></button>
+`
+
+const stepElevenContent = `
+  <button class="close-dialog" data-close-dialog aria-label="Close Walkthrough">X</button>
+  <p>You can access this tutorial again, or view tutorial videos, under our FAQ section.</p>
+  <p>You can also get personal help using our 24/7 customer support line.</p>
+  <div class="actions">
+    <button class="next-dialog" data-close-dialog>Finish</button>
+  </div>
 `
 
 const isAuthenticated = () => {
@@ -242,7 +295,7 @@ const injectDialog = (parentSelector, dialogClass, dialogBody) => {
     return
   }
 
-  const avoidedParents = ['body']
+  const avoidedParents = ['body', '.fancybox-inner']
 
   if (!avoidedParents.includes(parentSelector)) parent.style.position = 'relative'
 
@@ -266,25 +319,41 @@ const closeDialog = async () => {
   await dialog.close()
 }
 
-const handleMutation = async (mutationsList, observer) => {
+const fancyBoxMutation = async (mutationsList, observer) => {
   for (const mutation of mutationsList) {
     if (mutation.type === 'childList') {
       await mutation.addedNodes.forEach(async node => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           if (node.classList.contains('fancybox-wrap')) {
-            console.log('reminder element exists')
             await closeDialog()
 
-            injectDialog(
-              '#programContent .right',
-              'tooltip-custom modal-reminder-press',
-              stepEightContent
-            )
+            injectDialog('.fancybox-inner', 'tooltip-custom modal-reminder-press', stepEightContent)
             const modalReminderPressDialog = document.querySelector(
               'dialog.tooltip-custom.modal-reminder-press'
             )
             setStep(7)
             modalReminderPressDialog.show()
+
+            const close = document.querySelector('.modal-reminder-press .close-dialog')
+            close.addEventListener('click', event => {
+              closeDialog()
+              setStep(-1)
+            })
+
+            const reminderPress = document.querySelector('a[data-reminder-action="addRecord"]')
+            reminderPress.addEventListener('click', event => {
+              closeDialog()
+              setStep(8)
+
+              injectDialog(
+                '.main-menu .user-menu li a[href="/en/my-account"]',
+                'tooltip-custom my-account',
+                stepNineContent
+              )
+              const myAccountDialog = document.querySelector('dialog.tooltip-custom.my-account')
+              myAccountDialog.show()
+            })
+
             observer.disconnect()
           }
         }
@@ -309,6 +378,10 @@ const intializeWalkthrough = () => {
   // if we are on the tv section
   const showLiveTVSteps = window.location.pathname.includes('live-tv') && current < 4
   if (showLiveTVSteps) setStep(4)
+
+  // if we are the my account section
+  const showMyAccountSteps = window.location.pathname.includes('my-account') && current < 9
+  if (showMyAccountSteps) setStep(9)
 
   injectStyle(customCSS)
 
@@ -346,6 +419,23 @@ const intializeWalkthrough = () => {
   const watchReminderDialog = document.querySelector('dialog.tooltip-custom.set-reminder')
 
   // 7. ModalReminderPress
+  // handled in the mutation observer
+
+  // 8. My Account
+  injectDialog(
+    '.main-menu .user-menu li a[href="/en/my-account"]',
+    'tooltip-custom my-account',
+    stepNineContent
+  )
+  const myAccountDialog = document.querySelector('dialog.tooltip-custom.my-account')
+
+  // 9. My Account View
+  injectDialog('.col-lg-10', 'tooltip-custom my-account-view', stepTenContent)
+  const myAccountViewDialog = document.querySelector('dialog.tooltip-custom.my-account-view')
+
+  // 10. Finish
+  injectDialog('footer', 'welcome finish', stepElevenContent)
+  const finishDialog = document.querySelector('dialog.welcome.finish')
 
   const showDialog = async () => {
     await closeDialog()
@@ -386,16 +476,28 @@ const intializeWalkthrough = () => {
         if (!watchReminderDialog) break
         watchReminderDialog.show()
 
-        const observer = new MutationObserver(handleMutation)
+        const observer = new MutationObserver(fancyBoxMutation)
         const observerConfig = { childList: true, subtree: true }
         observer.observe(document.body, observerConfig)
 
         break
       case 7:
         // nothing
+        // step is only reached through the mutation observer
         break
       case 8:
-        // nothing
+        if (!myAccountDialog) break
+        myAccountDialog.show()
+        myAccountDialog.scrollIntoView({ block: 'end', behavior: 'smooth' })
+        break
+      case 9:
+        if (!myAccountViewDialog) break
+        myAccountViewDialog.show()
+        break
+      case 10:
+        if (!finishDialog) break
+        finishDialog.showModal()
+        document.querySelector('body').classList.add('no-scroll')
         break
       default:
         // nothing
@@ -416,7 +518,7 @@ const intializeWalkthrough = () => {
   })
 
   // 2. Next buttons
-  const nextButtons = document.querySelectorAll('.next-dialog')
+  const nextButtons = document.querySelectorAll('[data-next-dialog]')
   nextButtons.forEach(next => {
     next.addEventListener('click', async event => {
       setStep(getStep() + 1)
